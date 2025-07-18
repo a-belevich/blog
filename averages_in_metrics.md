@@ -1,3 +1,5 @@
+# Averages in Prometheus metrics
+
 Recently I found myself trying to debug an SLI dashboard. This dashboard is based on Grafana/Prometheus/Thanos,
 and it is displaying things like service's availability (% of successfully handled requests) or p99 latency over 
 periods of time from 1 day to 1 month. The whole text below represents my own understanding and may be incorrect in
