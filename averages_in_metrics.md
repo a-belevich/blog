@@ -49,7 +49,7 @@ sum(
 
 I.e., to calculate the average request rate of the total service, we can count average rate per server and then 
 sum them up. Or we can sum the rates from all servers over every `_rate_interval` into a single time series; 
-and then count its average. Same thing different angle? Not exactly.
+and then calculate its average. Same thing different angle? Not exactly.
 
 Trying to debug the issue and looking for clues, I checked the graph of rolling daily average rate of requests. Something like
 ```
@@ -76,10 +76,10 @@ results over time, but only if we deal with a static set of servers. If your ser
 only one of those models works.
 
 Imagine 5 servers, each handling 100 requests/sec all the time. 
-`sum(avg_over_time(requests:rate1m{}[1d]))` results in `sum(100)` 
-which results in constant horizontal line of 500 requests/sec (correct). 
+`sum(avg_over_time(requests:rate1m{}[1d]))` results in `sum(5 series always having value of 100)` 
+which results in a constant graph of 500 requests/sec (correct). 
 `avg_over_time(sum(requests:rate1m{})[1d:])` results in
-a total counter of 500 requests/sec and is averaged to the same constant graph of 500 requests/sec.
+a total counter of 500 requests/sec and is averaged to the same horizontal line of 500 requests/sec.
 
 Now imagine that we deployed 6 versions of a service that day. 
 Which means, there are 30 time series in Prometheus instead of 5; going for shorter periods of time.
@@ -91,13 +91,13 @@ What does `avg_over_time(requests:rate1m{}[1d])` even mean if the time series wa
 Apparently, it means that we'll count the average rate over the period that the series exists. So, suddenly we have 30
 time series, each averaging to 100. But then, each of them affects the totals for the next 24 hours 
 (since they still are visible in the lookback window).
-`sum` starts at 500 Monday morning (since we only saw 5 series over 24 hours before that),
+`sum` starts at 500 on Monday morning (since we only saw 5 series over 24 hours before that),
 but then it starts to grow. By the end of Monday it inflates up to 3000 requests per second.
 
 The same logic applies to calculating average latencies: `sum by (le) (avg_over_time(...[1d]))` vs `avg_over_time(sum by (le) (...)[1d:])`.
 Or to derivatives (the availability). Availability masks the problem, since both numerator and denominator
 got affected by the same re-deployments. 
-But, it still means that elevated error rate during the weekdays affect overall availability differently, 
+But it still means that elevated error rate during the weekdays hits the overall availability rating differently, 
 compared to the same error rate during a weekend.
 
 Don't even know whether my understanding is correct; and don't know whether it's only me who finds this behavior 
