@@ -10,10 +10,10 @@ But, it's not the topic of this article.
 While trying to debug this behavior I found something else: both interesting and counter-intuitive (to me).
 
 First, the setup. The service publishes a Prometheus counter of requests with `grpc_success` label. 
-Let's call it `requests`. Due to the large number of requests and slowness of frequent calculations of the rate,
+Let's call it `requests`. Due to the large number of requests and slowness of frequent rate calculations,
 it applies a recording rule that aggregates requests rate over 1 minute. Let's call the derivative metric
 `requests:rate1m`. Technically, in Prometheus terms, it's a counter, but it contains the average per-second requests rate 
-over a minute-long interval; not the monotonously growing number of requests served. You can consider it 
+over a minute-long interval; not the monotonically growing number of requests served. You can consider it 
 a shortcut for `rate(requests{}[1m])`; it doesn't change anything in the logic below.
 
 In the codebase I saw 2 different ways to calculate availability. It could be either 
