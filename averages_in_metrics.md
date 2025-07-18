@@ -67,7 +67,7 @@ For the comparison, here's what the graph of `avg_over_time(sum(...))` looks lik
 ![](/images/averages_in_metrics/graph1.png)
 Very reasonable to my taste.
 
-What's the cause of the sudden drops in volumes? The Weeknd. We don't deploy during weekends (and during Fridays). 
+What's the cause of the sudden drops in volumes? [This guy](https://en.wikipedia.org/wiki/The_Weeknd). We don't deploy during weekends (and during Fridays). 
 And we do actively deploy during the weekdays.
 
 Apparently, I had a wrong mental model. Those 2 ways to calculate the average request rate should produce similar 
@@ -92,4 +92,3 @@ Or to derivatives (the abovementioned availability). Availability masks the prob
 got affected by the same re-deployments. 
 But, it still means that elevated error rate during the weekdays affect overall availability compared to the same 
 error rate during a weekend.
-rate 
