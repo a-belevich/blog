@@ -8,7 +8,7 @@ Important note: I may lack some important knowledge about internal details of al
 
 ## Concurrency limiters with zero error tolerance
 
-In-process concurrency limiters discussed here are used to protect services during the period of fragility, either caused by excessive load or by fragile upstream dependencies. Under the hood, the limiter is a library (in cases I observed - Go library, usually based on *github.com/platinummonkey/go-concurrency-limits*) that collects local instance-level statistics and defines its internal limit of parallelism. When the limit is reached, it can either put the excessive requests into an internal queue, or quickly discard them (send an error like *HTTP 429* or *gRPC ResourceExhausted*).
+In-process concurrency limiters discussed here are used to protect services during the period of fragility, either caused by excessive load or by fragile upstream dependencies. Under the hood, the limiter is a library (in cases I observed - Go library, usually based on [github.com/platinummonkey/go-concurrency-limits](https://github.com/platinummonkey/go-concurrency-limits)) that collects local instance-level statistics and defines its internal limit of parallelism. When the limit is reached, it can either put the excessive requests into an internal queue, or quickly drop them (return an error like *HTTP 429* or *gRPC ResourceExhausted*).
 
 Concurrency limiters can be configured in multiple ways. In particular, they can have:
 
@@ -26,13 +26,13 @@ The idea of protecting a team's precious services with back-pressure that discar
 
 ## Envoys
 
-One more popular configuration option in service oriented architecture is Envoy. Often envoys are configured to use *LeastRequest* or *LeastCPU* load balancing strategy. Unfortunately, from the point of view of envoy, the service that immediately discards lots of requests, and tries to concurrently process less requests than others, looks like a very performant service. In other words, a great candidate for getting more traffic.
+One more popular configuration option in service oriented architecture is Envoy. Often envoys are configured to use `LeastRequest` or `LeastCPU` load balancing strategy. Unfortunately, from the point of view of envoy, the service that immediately discards lots of requests, and tries to concurrently process less requests than others, looks like a very performant service. In other words, a great candidate for getting more traffic.
 
-So: back-pressure strategies resulting in quick drop, when combined with *LeastRequest* or *LeastCPU* balancing, can work as an error multiplicator. Degraded instances receive (and discard) more traffic than healthy ones. The upstream services still remain protected and have a chance to recover, but the downstream services experience higher than needed rate of errors and retries (compared to, for example, simple *RoundRobin*). Note that back-pressure strategies resulting in throttling (or queueing), i.e. limiting internal processing concurrency while still keeping the RPC requests open, don't cause such problems for *LeastRequest* (though still can affect *LeastCPU*).
+So: back-pressure strategies resulting in quick drop, when combined with `LeastRequest` or `LeastCPU` balancing, can work as an error multiplicator. Degraded instances receive (and discard) more traffic than healthy ones. The upstream services still remain protected and have a chance to recover, but the downstream services experience higher than needed rate of errors and retries (compared to, for example, simple *RoundRobin*). Note that back-pressure strategies resulting in throttling (or queueing), i.e. limiting internal processing concurrency while still keeping the RPC requests open, don't cause such problems for `LeastRequest` (though still can affect `LeastCPU`).
 
 ## Auto-scaling
 
-Back-pressure strategies causing quick drops are not spending a lot of local CPU time. So, from the point of view of HPA auto-scaler, the deployments that are actively applying the back-pressure at the moment don’t look like they need extra pods. Quite the opposite, they are processing their workload with lower CPU utilization than usual, and can even trigger scaling in.
+Back-pressure strategies causing quick drops are not spending a lot of local CPU time. So, from the point of view of HPA auto-scaler, the deployments that are actively applying back-pressure at the moment don't look like they need extra pods. Quite the opposite, they are processing their workload with lower CPU utilization than usual, and can even trigger scaling in.
 
 So, my assumption is that auto-scaling for deployments with back-pressure should be based on number of downstream requests or queue lengths or something similar; not on CPU utilization.
 
@@ -46,9 +46,11 @@ In theory, the multi-level zero-error-tolerant chain looks like a way to quickly
 
 # Modeling
 
+To understand how the zero-error-tolerant AIMD quick-discard concurrency limiters behave when facing errors, I wrote a small simulator.
+
 ## Approach
 
-To understand how the zero-error-tolerant AIMD quick-discard concurrency limiters behave when facing errors, I wrote a small simulator. In current version, the simulated behavior includes:
+In current version, the simulated behavior includes:
 
 1. A test driver (emits instructions to clients and collects statistics).
 2. Clients: multiple actors sending the requests downstream, waiting for results, and retrying with backoff if needed.
@@ -61,7 +63,7 @@ To understand how the zero-error-tolerant AIMD quick-discard concurrency limiter
    4. Returns a success or an error (frequency of errors is configurable).
 4. Service groups: emulating deployments with load balancing. Right now, they support envoy-like behaviors (request level balancing) with either round-robin or least-busy strategies, or ClusterIP-like behaviors (connection level balancing).
 
-The source code is published at https://github.com/a-belevich/workloads. The Main class contains the definition of the simulated environment (all services and their configurations). When executed, it displays per-second statistics.
+The source code is published at [https://github.com/a-belevich/workloads](https://github.com/a-belevich/workloads). The Main class contains the definition of the simulated environment (all services and their configurations). When executed, it displays per-second statistics.
 
 ## Configuration
 
@@ -94,7 +96,7 @@ The model can be not completely accurate. For example, the LeastBusy balancing m
 
 # Real life
 
-So far, I have multiple observations of concurrency limiters eagerly protecting their own services at the expense of downstream ones. And I observed one occurrence of a fix: after reconfiguring the system (increasing retries even more, and replacing load balancing strategy from LeastRequest to RoundRobin) the massive losses of messages stopped.
+So far, I have multiple observations of concurrency limiters eagerly protecting their own services at the expense of downstream ones. And I observed one occurrence of a fix: after reconfiguring the system (increasing retries even more, and replacing load balancing strategy from `LeastRequest` to `RoundRobin`) the massive losses of messages stopped.
 
 I don’t have a complete understanding of all the possible effects yet, and my testing capacity is limited due not owning any concurrency limited services; I only happen to call one of them. So, maybe some of my modeling assumptions are wrong, and the services in the wild don’t behave as predicted.
 
@@ -110,7 +112,7 @@ If some of those predictions happen to be correct, it can mean that the concurre
 
 ## Readiness probes
 
-In theory, the problem with LeastRequest sending most of traffic to concurrently limited pods could be solved by readiness probes failing when the concurrency limiter trips. The result is the pod stays up, is balanced out for traffic, and can recover. It comes back alive when it's in a healthy state. However, it comes back with low concurrency limit set, so the whole time the limits are growing back to healthy values the pod still will demonstrate problematic behavior?
+In theory, the problem with `LeastRequest` sending most of traffic to concurrently limited pods could be solved by readiness probes failing when the concurrency limiter trips. The result is the pod stays up, is balanced out for traffic, and can recover. It comes back alive when it's in a healthy state. However, it comes back with low concurrency limit set, so the whole time the limits are growing back to healthy values the pod still will demonstrate problematic behavior?
 
 ## Retries
 
@@ -126,17 +128,13 @@ If your service is accepting traffic only via Envoy you can use \`per\_host\_thr
 
 # Queueing vs Dropping
 
-Requests being queued/throttled inside a service could be a great alternative to quick dropping. This approach doesn't conflict with LeastRequest balancing: the pod that fails to process messages quickly receives less messages than healthy ones, not more.
-
-# HPA
-
-While it's true that it's better to scale based on the RPS as counted by your upstream rather than scale per CPU, there are some caveats here. KEDA (and most autoscalers) scale on the average which means that you can still have cascading failures where you don't scale up quickly if your traffic is not balanced.
+Requests being queued/throttled inside a service could be a great alternative to quick dropping. This approach doesn't conflict with `LeastRequest` balancing: the pod that fails to process messages quickly receives less messages than healthy ones, not more.
 
 # Back-pressure and SLA
 
 In general case it's not clear who's responsible for the dropped requests (is the downstream service DDoSing upstream? or is the upstream service unhealthy? how much of retries are too much?). So, when using techniques like quick-drop concurrency limiting, it's especially important to negotiate a clear SLA. Otherwise it can grow into a big source of friction and disappointment for all involved teams.
 
-# Sync vs async
+# Async messaging
 
 In many cases (especially for the latency-insensitive workflows) the architecture with async message passing looks like a better option compared to RPC. Back-pressure in the form of loading less messages for processing and leaving unprocessed messages in some a queue/topic makes things more predictable and manageable.
 
