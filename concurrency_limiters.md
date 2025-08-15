@@ -71,9 +71,9 @@ The existing codebase contains a config of:
 
 1. A test driver initiating 10,000 requests/sec from
 2. 10,000 client actors sending requests to
-3. An envoy with LeastBusy load balancing, sending requests to
+3. An envoy with `LeastRequest` load balancing, sending requests to
 4. One out of a 100 client-facing services with zero-error-tolerance quick-discard concurrency limiter, sending requests to:
-5. An upstream envoy with LeastBusy load balancing, sending requests to
+5. An upstream envoy with `LeastRequest` load balancing, sending requests to
 6. One of the upstream services with zero-error-tolerance quick-discard concurrency limiter.
 7. There are 99 upstream services that always return a success, and 1 that returns one error in 2 seconds.
 
@@ -88,11 +88,11 @@ In the configured environment, both levels of services quickly (within a minute)
 * After the upstream errors reach a certain percentage, the downstream service's retry policy cannot catch all errors, and lets some of the errors through. Which, in turn, causes a decrease in their own concurrency limits.
 * Eventually, even the client’s retry policy becomes not strong enough, and the driver starts to receive a significant amount of errors, despite the retries on 2 levels.
 
-I.e.: one bad (not even super bad: just one error in 2 seconds) actor pushes the system from the stable state successfully handling 10k requests/sec into a state where 1k-1.5k requests per second fail; all due to an interaction between AIMD limiters, LeastBusy load balancers, and 2 levels of zero error tolerance.
+I.e.: one bad (not even super bad: just one error in 2 seconds) actor pushes the system from the stable state successfully handling 10k requests/sec into a state where 1k-1.5k requests per second fail; all due to an interaction between AIMD limiters, `LeastRequest` load balancers, and 2 levels of zero error tolerance.
 
 ## Caveats
 
-The model can be not completely accurate. For example, the LeastBusy balancing mode always chooses the least busy worker globally; in real envoys it’s a 2-step process. How accurate is the model’s representation of reality - difficult to answer without real-world tests.
+The model can be not completely accurate. For example, the `LeastRequest` balancing mode always chooses the least busy worker globally; in real envoys it’s a 2-step process. How accurate is the model’s representation of reality - difficult to answer without real-world tests.
 
 # Real life
 
