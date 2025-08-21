@@ -1,10 +1,12 @@
-# TLDR
+# Concurrency limiters and load balancing
+
+## TLDR
 
 Concurrency limiters, while providing a valuable stability improvement for the service itself and for its upstreams, can cause some less expected effects when being combined with other popular configuration options (least requests or least CPU load balancing; HPA auto-scaling; other concurrency limiters).
 
-# Speculations
+# Definitions and speculations
 
-Important note: I may lack some important knowledge about internal details of all the components mentioned below.
+Disclaimer: I may lack some important knowledge about internal details of all the components mentioned below.
 
 ## Concurrency limiters with zero error tolerance
 
