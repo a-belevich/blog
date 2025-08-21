@@ -141,12 +141,12 @@ In many cases (especially for the latency-insensitive workflows) the architectur
 * It does not introduce artificial errors which are different from real errors and should be handled and counted separately.
 * It does not skew traffic towards failing pods.
 * It does not completely exclude slower/concurrency-limited pods from serving traffic (especially when **all** pods get slow for some reason during an incident).
-* Backups are easily observable.
-* It does not require a lot of coordination between clients and servers (clients can send requests at their own rate, and servers can pull them for processing at their own rate, assuming the queueing solution is robust enough to avoid crashes when backed up).
+* Backups are easily observable in the form of queue length or consumer group lags.
+* It does not require a lot of coordination between clients and servers. Clients can send messages at their own rate, and servers can fetch them for processing at their own rate, assuming the queueing solution is robust enough to avoid crashes when backed up.
 * It simplifies SLAs. All back-pressure aspects, retry policy etc are defined by the service owners; the downstream teams should only agree on overall throughput/latency.
 
-One more intriguing opportunity that I haven't seen implemented anywhere yet would be an ability to calculate "message processing capacity surplus". When message processors are trying to preload more messages than the queue has buffered, the difference can play a role of a "negative queue length". This surplus could make scaling down more efficient: we know how many message processors are idling, not only that the queue length is zero.
+One more intriguing opportunity that I haven't seen implemented anywhere yet would be an ability to calculate "message processing capacity surplus". When message processors are trying to fetch more messages than the queue has buffered, the difference can be considered as a "negative queue length". This surplus could make scaling down more efficient: we know how many message processors are idling and can be stopped; not just that the queue is empty.
 
 # Credits
 
-In addition to my colleagues who discussed this topic with me, I also want to thank David Dunning and Justing Kruger for the confidence to model behaviors of tools that I don’t know well.
+In addition to my colleagues who discussed this topic with me, I also want to thank David Dunning and Justing Kruger for the confidence to model behaviors of tools that I don't know well.
